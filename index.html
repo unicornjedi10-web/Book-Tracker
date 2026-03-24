@@ -52,8 +52,8 @@ body.dark .progress-container {
 .progress-bar {
   height: 100%;
   width: 0%;
-  transition: 0.4s ease;
   border-radius: 12px;
+  transition: width 0.4s ease;
 }
 
 .emoji {
@@ -198,8 +198,10 @@ function update() {
 
   let percent = Math.min((read / total) * 100, 100);
 
-  // Progress bar: primary = completed, secondary = remaining
-  document.getElementById("bar").style.background = `linear-gradient(to right, ${color} 0%, ${color} ${percent}%, ${secondaryColor} ${percent}%, ${secondaryColor} 100%)`;
+  // Two layers for progress bar: primary = completed, secondary = remaining
+  document.getElementById("bar").style.width = percent + "%";
+  document.getElementById("bar").style.background = color;
+  document.getElementById("progressContainer").style.background = secondaryColor;
 
   // Buttons use primary color
   document.querySelectorAll(".big-button").forEach(btn => btn.style.background = color);
