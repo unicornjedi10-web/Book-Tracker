@@ -99,7 +99,7 @@ input {
 <body>
 
 <div class="card">
-  <h2>📖 Book Tracker</h2>
+  <h2 id="bookTitleDisplay">📖 Book Tracker</h2>
 
   <div class="progress-container">
     <div class="progress-bar" id="bar"></div>
@@ -114,6 +114,7 @@ input {
   <div class="toggle" onclick="toggleSettings()">⚙️ Settings</div>
 
   <div id="settings" class="hidden small">
+    Current Book: <input type="text" id="bookTitle"><br>
     Total Pages: <input type="number" id="total"><br>
     Daily Pages: <input type="number" id="daily"><br>
     Step Size: <input type="number" id="step"><br>
@@ -126,6 +127,8 @@ input {
 // Load saved state or defaults
 let saved = JSON.parse(localStorage.getItem("bookTracker")) || {};
 let read = saved.read || 0;
+document.getElementById("bookTitle").value = saved.bookTitle || "";
+document.getElementById("bookTitleDisplay").innerText = saved.bookTitle ? "📖 " + saved.bookTitle : "📖 Book Tracker";
 document.getElementById("total").value = saved.total || 300;
 document.getElementById("daily").value = saved.daily || 10;
 document.getElementById("step").value = saved.step || 1;
@@ -135,6 +138,7 @@ if(saved.darkMode) document.body.classList.add("dark");
 function saveState() {
   let state = {
     read: read,
+    bookTitle: document.getElementById("bookTitle").value,
     total: parseInt(document.getElementById("total").value),
     daily: parseInt(document.getElementById("daily").value),
     step: parseInt(document.getElementById("step").value),
@@ -155,6 +159,7 @@ function update() {
   let total = parseInt(document.getElementById("total").value);
   let daily = parseInt(document.getElementById("daily").value);
   let color = document.getElementById("color").value;
+  let title = document.getElementById("bookTitle").value;
 
   let percent = Math.min((read / total) * 100, 100);
 
@@ -171,6 +176,9 @@ function update() {
 
   document.getElementById("estimate").innerText =
     remaining > 0 ? "📅 Finish: " + d.toDateString() : "🎉 Completed!";
+
+  // Update displayed title
+  document.getElementById("bookTitleDisplay").innerText = title ? "📖 " + title : "📖 Book Tracker";
 }
 
 function toggleSettings() {
@@ -183,7 +191,7 @@ function toggleDarkMode() {
 }
 
 // Update whenever inputs change
-document.querySelectorAll("#total, #daily, #step, #color").forEach(input => {
+document.querySelectorAll("#bookTitle, #total, #daily, #step, #color").forEach(input => {
   input.addEventListener("input", () => { update(); saveState(); });
 });
 
