@@ -11,31 +11,26 @@ body {
   padding: 20px;
   transition: background 0.3s, color 0.3s;
 }
-
 body.dark {
   background: #1e1e1e;
   color: #f1f1f1;
 }
-
 .card {
   background: white;
   padding: 20px;
   border-radius: 16px;
-  width: 340px;
+  width: 360px;
   text-align: center;
   box-shadow: 0 8px 20px rgba(0,0,0,0.06);
   transition: background 0.3s, color 0.3s;
 }
-
 body.dark .card {
   background: #2b2b2b;
   color: #f1f1f1;
 }
-
 h2 {
   margin-bottom: 10px;
 }
-
 .progress-container {
   background: #eee;
   border-radius: 12px;
@@ -44,18 +39,15 @@ h2 {
   margin: 15px 0;
   position: relative;
 }
-
 body.dark .progress-container {
   background: #444;
 }
-
 .progress-bar {
   height: 100%;
   width: 0%;
   border-radius: 12px;
   transition: width 0.4s ease;
 }
-
 .emoji {
   position: absolute;
   top: -2px;
@@ -63,7 +55,6 @@ body.dark .progress-container {
   font-size: 20px;
   transition: left 0.4s ease;
 }
-
 .big-button {
   font-size: 26px;
   width: 70px;
@@ -75,175 +66,233 @@ body.dark .progress-container {
   transition: 0.2s;
   margin: 5px;
 }
-
-.big-button:active {
-  transform: scale(0.9);
-}
-
-.small {
-  font-size: 13px;
-  opacity: 0.7;
-}
-
-input {
-  width: 70px;
-  text-align: center;
-  border-radius: 6px;
-  border: 1px solid #ddd;
-  margin: 4px;
-}
-
-.toggle {
-  margin-top: 10px;
-  cursor: pointer;
-  font-size: 13px;
-  opacity: 0.7;
-}
-
-.hidden {
-  display: none;
-}
+.big-button:active { transform: scale(0.9); }
+.small { font-size: 13px; opacity: 0.7; }
+input, select { width: 80px; text-align: center; border-radius: 6px; border: 1px solid #ddd; margin: 4px; }
+.toggle { margin-top: 10px; cursor: pointer; font-size: 13px; opacity: 0.7; }
+.hidden { display: none; }
 </style>
 </head>
 <body>
 
 <div class="card">
   <h2 id="bookTitleDisplay">📖 Book Tracker</h2>
-
+  
+  <select id="bookSelect"></select>
+  <button onclick="addBook()" class="small">➕ New Book</button>
+  
   <div class="progress-container" id="progressContainer">
     <div class="progress-bar" id="bar"></div>
     <div class="emoji" id="emoji">📚</div>
   </div>
-
+  
   <div id="percent">0%</div>
   <div id="pageCount" class="small">0 / 0 pages</div>
-
+  
   <button class="big-button" onclick="addPage()">+</button>
   <button class="big-button" onclick="removePage()">-</button>
   <button class="big-button" onclick="resetProgress()">⟳</button>
-
+  
   <div class="small" id="estimate"></div>
-
+  
   <div class="toggle" onclick="toggleSettings()">⚙️ Settings</div>
-
+  
   <div id="settings" class="hidden small">
-    Current Book: <input type="text" id="bookTitle"><br>
+    Title: <input type="text" id="bookTitle"><br>
     Total Pages: <input type="number" id="total"><br>
     Daily Pages: <input type="number" id="daily"><br>
     Step Size: <input type="number" id="step"><br>
     Primary Color: <input type="color" id="color"><br>
-    Secondary Color: <input type="color" id="secondaryColor"><br>
+    Settings / Remaining Color: <input type="color" id="secondaryColor"><br>
     Emoji: <input type="text" id="emojiInput" maxlength="2"><br>
-    <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
+    <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button><br>
+    <button onclick="exportToSheets()">📤 Export to Google Sheets</button>
   </div>
 </div>
 
 <script>
-// Load saved state or defaults
-let saved = JSON.parse(localStorage.getItem("bookTracker")) || {};
-let read = saved.read || 0;
-document.getElementById("bookTitle").value = saved.bookTitle || "";
-document.getElementById("bookTitleDisplay").innerText = saved.bookTitle ? "📖 " + saved.bookTitle : "📖 Book Tracker";
-document.getElementById("total").value = saved.total || 300;
-document.getElementById("daily").value = saved.daily || 10;
-document.getElementById("step").value = saved.step || 1;
-document.getElementById("color").value = saved.color || "#4CAF50";
-document.getElementById("secondaryColor").value = saved.secondaryColor || "#cccccc";
-document.getElementById("emojiInput").value = saved.emoji || "📚";
-document.getElementById("emoji").innerText = saved.emoji || "📚";
-if(saved.darkMode) document.body.classList.add("dark");
+// --- Load or initialize ---
+let books = JSON.parse(localStorage.getItem("books")) || [];
+let currentBookIndex = 0;
 
-function saveState() {
-  let state = {
-    read: read,
-    bookTitle: document.getElementById("bookTitle").value,
-    total: parseInt(document.getElementById("total").value),
-    daily: parseInt(document.getElementById("daily").value),
-    step: parseInt(document.getElementById("step").value),
-    color: document.getElementById("color").value,
-    secondaryColor: document.getElementById("secondaryColor").value,
-    emoji: document.getElementById("emojiInput").value,
-    darkMode: document.body.classList.contains("dark")
-  };
-  localStorage.setItem("bookTracker", JSON.stringify(state));
+// Initialize first book if none exist
+if(books.length === 0) {
+  books.push({
+    title: "Book 1",
+    read: 0,
+    total: 300,
+    daily: 10,
+    step: 1,
+    color: "#4CAF50",
+    secondaryColor: "#cccccc",
+    emoji: "📚"
+  });
+}
+populateBookSelect();
+loadBook(currentBookIndex);
+
+// --- UI Functions ---
+function populateBookSelect() {
+  const sel = document.getElementById("bookSelect");
+  sel.innerHTML = "";
+  books.forEach((b, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.innerText = b.title;
+    sel.appendChild(opt);
+  });
+  sel.value = currentBookIndex;
 }
 
-function addPage() {
-  let step = parseInt(document.getElementById("step").value);
-  read += step;
+document.getElementById("bookSelect").addEventListener("change", (e) => {
+  currentBookIndex = parseInt(e.target.value);
+  loadBook(currentBookIndex);
+});
+
+function addBook() {
+  let newBook = {
+    title: `Book ${books.length+1}`,
+    read: 0,
+    total: 300,
+    daily: 10,
+    step: 1,
+    color: "#4CAF50",
+    secondaryColor: "#cccccc",
+    emoji: "📚"
+  };
+  books.push(newBook);
+  currentBookIndex = books.length-1;
+  saveBooks();
+  populateBookSelect();
+  loadBook(currentBookIndex);
+}
+
+function loadBook(index) {
+  let book = books[index];
+  document.getElementById("bookTitle").value = book.title;
+  document.getElementById("total").value = book.total;
+  document.getElementById("daily").value = book.daily;
+  document.getElementById("step").value = book.step;
+  document.getElementById("color").value = book.color;
+  document.getElementById("secondaryColor").value = book.secondaryColor;
+  document.getElementById("emojiInput").value = book.emoji;
   update();
-  saveState();
+}
+
+function saveBooks() {
+  localStorage.setItem("books", JSON.stringify(books));
+}
+
+// --- Book Actions ---
+function addPage() {
+  let book = books[currentBookIndex];
+  book.read += parseInt(document.getElementById("step").value);
+  if(book.read > book.total) book.read = book.total;
+  saveBookInputs();
+  update();
+  saveBooks();
 }
 
 function removePage() {
-  let step = parseInt(document.getElementById("step").value);
-  read = Math.max(0, read - step);
+  let book = books[currentBookIndex];
+  book.read -= parseInt(document.getElementById("step").value);
+  if(book.read < 0) book.read = 0;
+  saveBookInputs();
   update();
-  saveState();
+  saveBooks();
 }
 
 function resetProgress() {
-  read = 0;
+  let book = books[currentBookIndex];
+  book.read = 0;
+  saveBookInputs();
   update();
-  saveState();
+  saveBooks();
+}
+
+// --- Update Display ---
+function saveBookInputs() {
+  let book = books[currentBookIndex];
+  book.title = document.getElementById("bookTitle").value;
+  book.total = parseInt(document.getElementById("total").value);
+  book.daily = parseInt(document.getElementById("daily").value);
+  book.step = parseInt(document.getElementById("step").value);
+  book.color = document.getElementById("color").value;
+  book.secondaryColor = document.getElementById("secondaryColor").value;
+  book.emoji = document.getElementById("emojiInput").value || "📚";
+  populateBookSelect();
 }
 
 function update() {
-  let total = parseInt(document.getElementById("total").value);
-  let daily = parseInt(document.getElementById("daily").value);
-  let color = document.getElementById("color").value;
-  let secondaryColor = document.getElementById("secondaryColor").value;
-  let title = document.getElementById("bookTitle").value;
-  let emojiChar = document.getElementById("emojiInput").value || "📚";
+  let book = books[currentBookIndex];
+  let percent = Math.min((book.read / book.total) * 100, 100);
 
-  let percent = Math.min((read / total) * 100, 100);
-
-  // Two layers for progress bar: primary = completed, secondary = remaining
+  // Progress bar
   document.getElementById("bar").style.width = percent + "%";
-  document.getElementById("bar").style.background = color;
-  document.getElementById("progressContainer").style.background = secondaryColor;
+  document.getElementById("bar").style.background = book.color;
+  document.getElementById("progressContainer").style.background = book.secondaryColor;
 
-  // Buttons use primary color
-  document.querySelectorAll(".big-button").forEach(btn => btn.style.background = color);
+  // Buttons color
+  document.querySelectorAll(".big-button").forEach(btn => btn.style.background = book.color);
 
-  // Text elements use secondary color
-  document.getElementById("percent").style.color = secondaryColor;
-  document.getElementById("pageCount").style.color = secondaryColor;
-  document.getElementById("estimate").style.color = secondaryColor;
-  document.getElementById("bookTitleDisplay").style.color = secondaryColor;
+  // Text color
+  document.getElementById("percent").style.color = book.secondaryColor;
+  document.getElementById("pageCount").style.color = book.secondaryColor;
+  document.getElementById("estimate").style.color = book.secondaryColor;
+  document.getElementById("bookTitleDisplay").style.color = book.secondaryColor;
 
+  // Text updates
   document.getElementById("percent").innerText = percent.toFixed(1) + "%";
-  document.getElementById("pageCount").innerText = `${read} / ${total} pages`;
+  document.getElementById("pageCount").innerText = `${book.read} / ${book.total} pages`;
+  document.getElementById("bookTitleDisplay").innerText = book.title ? "📖 " + book.title : "📖 Book Tracker";
 
-  let remaining = total - read;
-  let days = Math.ceil(remaining / daily);
+  let remaining = book.total - book.read;
+  let days = Math.ceil(remaining / book.daily);
   let d = new Date();
   d.setDate(d.getDate() + days);
-
   document.getElementById("estimate").innerText =
     remaining > 0 ? "📅 Finish: " + d.toDateString() : "🎉 Completed!";
 
-  document.getElementById("bookTitleDisplay").innerText = title ? "📖 " + title : "📖 Book Tracker";
-
-  // Emoji moves along progress
+  // Emoji
   let containerWidth = document.getElementById("progressContainer").offsetWidth;
   let emojiPos = (percent / 100) * containerWidth;
   document.getElementById("emoji").style.left = `${emojiPos}px`;
-  document.getElementById("emoji").innerText = emojiChar;
+  document.getElementById("emoji").innerText = book.emoji;
 }
 
-function toggleSettings() {
-  document.getElementById("settings").classList.toggle("hidden");
+// --- Toggle settings & dark mode ---
+function toggleSettings() { document.getElementById("settings").classList.toggle("hidden"); }
+function toggleDarkMode() { document.body.classList.toggle("dark"); saveBooks(); }
+
+// --- Export to Google Sheets ---
+// Set up your Google Apps Script endpoint URL
+const SHEETS_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL";
+
+function exportToSheets() {
+  let data = books.map(b => ({
+    title: b.title,
+    read: b.read,
+    total: b.total,
+    daily: b.daily,
+    step: b.step,
+    color: b.color,
+    secondaryColor: b.secondaryColor,
+    emoji: b.emoji
+  }));
+  
+  fetch(SHEETS_URL, {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: { "Content-Type": "application/json" }
+  }).then(res => {
+    if(res.ok) alert("Exported to Google Sheets!");
+    else alert("Failed to export.");
+  }).catch(err => alert("Error exporting: "+err));
 }
 
-function toggleDarkMode() {
-  document.body.classList.toggle("dark");
-  saveState();
-}
-
-// Update whenever inputs change
+// --- Save inputs whenever changed ---
 document.querySelectorAll("#bookTitle, #total, #daily, #step, #color, #secondaryColor, #emojiInput").forEach(input => {
-  input.addEventListener("input", () => { update(); saveState(); });
+  input.addEventListener("input", () => { saveBookInputs(); update(); saveBooks(); });
 });
 
 update();
