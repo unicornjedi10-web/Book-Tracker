@@ -21,7 +21,7 @@ body.dark {
   background: white;
   padding: 20px;
   border-radius: 16px;
-  width: 320px;
+  width: 340px;
   text-align: center;
   box-shadow: 0 8px 20px rgba(0,0,0,0.06);
   transition: background 0.3s, color 0.3s;
@@ -65,6 +65,7 @@ body.dark .progress-container {
   color: white;
   cursor: pointer;
   transition: 0.2s;
+  margin: 5px;
 }
 
 .big-button:active {
@@ -106,8 +107,11 @@ input {
   </div>
 
   <div id="percent">0%</div>
+  <div id="pageCount" class="small">0 / 0 pages</div>
 
   <button class="big-button" onclick="addPage()">+</button>
+  <button class="big-button" onclick="removePage()">-</button>
+  <button class="big-button" onclick="resetProgress()">⟳</button>
 
   <div class="small" id="estimate"></div>
 
@@ -118,7 +122,8 @@ input {
     Total Pages: <input type="number" id="total"><br>
     Daily Pages: <input type="number" id="daily"><br>
     Step Size: <input type="number" id="step"><br>
-    Color: <input type="color" id="color"><br>
+    Primary Color: <input type="color" id="color"><br>
+    Secondary Color: <input type="color" id="secondaryColor"><br>
     <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
   </div>
 </div>
@@ -133,6 +138,7 @@ document.getElementById("total").value = saved.total || 300;
 document.getElementById("daily").value = saved.daily || 10;
 document.getElementById("step").value = saved.step || 1;
 document.getElementById("color").value = saved.color || "#4CAF50";
+document.getElementById("secondaryColor").value = saved.secondaryColor || "#cccccc";
 if(saved.darkMode) document.body.classList.add("dark");
 
 function saveState() {
@@ -143,6 +149,7 @@ function saveState() {
     daily: parseInt(document.getElementById("daily").value),
     step: parseInt(document.getElementById("step").value),
     color: document.getElementById("color").value,
+    secondaryColor: document.getElementById("secondaryColor").value,
     darkMode: document.body.classList.contains("dark")
   };
   localStorage.setItem("bookTracker", JSON.stringify(state));
@@ -155,19 +162,34 @@ function addPage() {
   saveState();
 }
 
+function removePage() {
+  let step = parseInt(document.getElementById("step").value);
+  read = Math.max(0, read - step);
+  update();
+  saveState();
+}
+
+function resetProgress() {
+  read = 0;
+  update();
+  saveState();
+}
+
 function update() {
   let total = parseInt(document.getElementById("total").value);
   let daily = parseInt(document.getElementById("daily").value);
   let color = document.getElementById("color").value;
+  let secondaryColor = document.getElementById("secondaryColor").value;
   let title = document.getElementById("bookTitle").value;
 
   let percent = Math.min((read / total) * 100, 100);
 
   document.getElementById("bar").style.width = percent + "%";
   document.getElementById("bar").style.background = color;
-  document.querySelector(".big-button").style.background = color;
+  document.querySelectorAll(".big-button").forEach(btn => btn.style.background = color);
 
   document.getElementById("percent").innerText = percent.toFixed(1) + "%";
+  document.getElementById("pageCount").innerText = `${read} / ${total} pages`;
 
   let remaining = total - read;
   let days = Math.ceil(remaining / daily);
@@ -177,7 +199,6 @@ function update() {
   document.getElementById("estimate").innerText =
     remaining > 0 ? "📅 Finish: " + d.toDateString() : "🎉 Completed!";
 
-  // Update displayed title
   document.getElementById("bookTitleDisplay").innerText = title ? "📖 " + title : "📖 Book Tracker";
 }
 
@@ -191,7 +212,7 @@ function toggleDarkMode() {
 }
 
 // Update whenever inputs change
-document.querySelectorAll("#bookTitle, #total, #daily, #step, #color").forEach(input => {
+document.querySelectorAll("#bookTitle, #total, #daily, #step, #color, #secondaryColor").forEach(input => {
   input.addEventListener("input", () => { update(); saveState(); });
 });
 
