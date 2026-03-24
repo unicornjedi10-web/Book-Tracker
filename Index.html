@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f6f6f6;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  width: 320px;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+
+h2 {
+  margin-bottom: 10px;
+}
+
+.progress-container {
+  background: #eee;
+  border-radius: 12px;
+  height: 14px;
+  overflow: hidden;
+  margin: 15px 0;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  transition: 0.4s ease;
+  background: var(--color, #4CAF50);
+}
+
+.big-button {
+  font-size: 26px;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color, #4CAF50);
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.big-button:active {
+  transform: scale(0.9);
+}
+
+.small {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+input {
+  width: 80px;
+  text-align: center;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.toggle {
+  margin-top: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.hidden {
+  display: none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>📖 Book Tracker</h2>
+
+<div class="progress-container">
+  <div class="progress-bar" id="bar"></div>
+</div>
+
+<div id="percent">0%</div>
+
+<button class="big-button" onclick="addPage()">+</button>
+
+<div class="small" id="estimate"></div>
+
+<div class="toggle" onclick="toggle()">⚙️ Settings</div>
+
+<div id="settings" class="hidden small">
+
+  Pages: <input type="number" id="total" value="300"><br><br>
+  Daily: <input type="number" id="daily" value="10"><br><br>
+  Color: <input type="color" id="color" value="#4CAF50"><br><br>
+  Step: <input type="number" id="step" value="1">
+
+</div>
+
+</div>
+
+<script>
+
+let read = 0;
+
+function addPage() {
+  let step = parseInt(document.getElementById("step").value);
+  read += step;
+  update();
+}
+
+function update() {
+  let total = parseInt(document.getElementById("total").value);
+  let daily = parseInt(document.getElementById("daily").value);
+  let color = document.getElementById("color").value;
+
+  let percent = Math.min((read / total) * 100, 100);
+
+  document.getElementById("bar").style.width = percent + "%";
+  document.getElementById("bar").style.background = color;
+  document.querySelector(".big-button").style.background = color;
+
+  document.getElementById("percent").innerText = percent.toFixed(1) + "%";
+
+  let remaining = total - read;
+  let days = Math.ceil(remaining / daily);
+
+  let d = new Date();
+  d.setDate(d.getDate() + days);
+
+  document.getElementById("estimate").innerText =
+    "📅 Finish: " + d.toDateString();
+}
+
+function toggle() {
+  let s = document.getElementById("settings");
+  s.classList.toggle("hidden");
+}
+
+update();
+
+</script>
+
+</body>
+</html>
