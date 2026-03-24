@@ -39,7 +39,7 @@ h2 {
 .progress-container {
   background: #eee;
   border-radius: 12px;
-  height: 14px;
+  height: 20px;
   overflow: hidden;
   margin: 15px 0;
 }
@@ -53,6 +53,7 @@ body.dark .progress-container {
   width: 0%;
   transition: 0.4s ease;
   background: #4CAF50;
+  border-radius: 12px;
 }
 
 .big-button {
@@ -123,7 +124,7 @@ input {
     Daily Pages: <input type="number" id="daily"><br>
     Step Size: <input type="number" id="step"><br>
     Primary Color: <input type="color" id="color"><br>
-    Secondary Color: <input type="color" id="secondaryColor"><br>
+    Secondary Color (Text): <input type="color" id="secondaryColor"><br>
     <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
   </div>
 </div>
@@ -186,6 +187,12 @@ function update() {
 
   document.getElementById("bar").style.width = percent + "%";
   document.getElementById("bar").style.background = color;
+
+  // Apply secondary color to text elements
+  document.getElementById("percent").style.color = secondaryColor;
+  document.getElementById("pageCount").style.color = secondaryColor;
+  document.getElementById("estimate").style.color = secondaryColor;
+
   document.querySelectorAll(".big-button").forEach(btn => btn.style.background = color);
 
   document.getElementById("percent").innerText = percent.toFixed(1) + "%";
