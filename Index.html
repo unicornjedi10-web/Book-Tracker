@@ -3,7 +3,6 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-
 body {
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f6f6f6;
@@ -37,7 +36,7 @@ h2 {
   height: 100%;
   width: 0%;
   transition: 0.4s ease;
-  background: var(--color, #4CAF50);
+  background: #4CAF50;
 }
 
 .big-button {
@@ -46,7 +45,7 @@ h2 {
   height: 70px;
   border-radius: 50%;
   border: none;
-  background: var(--color, #4CAF50);
+  background: #4CAF50;
   color: white;
   cursor: pointer;
   transition: 0.2s;
@@ -62,10 +61,11 @@ h2 {
 }
 
 input {
-  width: 80px;
+  width: 70px;
   text-align: center;
   border-radius: 6px;
   border: 1px solid #ddd;
+  margin: 4px;
 }
 
 .toggle {
@@ -78,47 +78,58 @@ input {
 .hidden {
   display: none;
 }
-
 </style>
 </head>
-
 <body>
 
 <div class="card">
+  <h2>📖 Book Tracker</h2>
 
-<h2>📖 Book Tracker</h2>
+  <div class="progress-container">
+    <div class="progress-bar" id="bar"></div>
+  </div>
 
-<div class="progress-container">
-  <div class="progress-bar" id="bar"></div>
-</div>
+  <div id="percent">0%</div>
 
-<div id="percent">0%</div>
+  <button class="big-button" onclick="addPage()">+</button>
 
-<button class="big-button" onclick="addPage()">+</button>
+  <div class="small" id="estimate"></div>
 
-<div class="small" id="estimate"></div>
+  <div class="toggle" onclick="toggleSettings()">⚙️ Settings</div>
 
-<div class="toggle" onclick="toggle()">⚙️ Settings</div>
-
-<div id="settings" class="hidden small">
-
-  Pages: <input type="number" id="total" value="300"><br><br>
-  Daily: <input type="number" id="daily" value="10"><br><br>
-  Color: <input type="color" id="color" value="#4CAF50"><br><br>
-  Step: <input type="number" id="step" value="1">
-
-</div>
-
+  <div id="settings" class="hidden small">
+    Total Pages: <input type="number" id="total"><br>
+    Daily Pages: <input type="number" id="daily"><br>
+    Step Size: <input type="number" id="step"><br>
+    Color: <input type="color" id="color"><br>
+  </div>
 </div>
 
 <script>
+// Load saved state or defaults
+let saved = JSON.parse(localStorage.getItem("bookTracker")) || {};
+let read = saved.read || 0;
+document.getElementById("total").value = saved.total || 300;
+document.getElementById("daily").value = saved.daily || 10;
+document.getElementById("step").value = saved.step || 1;
+document.getElementById("color").value = saved.color || "#4CAF50";
 
-let read = 0;
+function saveState() {
+  let state = {
+    read: read,
+    total: parseInt(document.getElementById("total").value),
+    daily: parseInt(document.getElementById("daily").value),
+    step: parseInt(document.getElementById("step").value),
+    color: document.getElementById("color").value
+  };
+  localStorage.setItem("bookTracker", JSON.stringify(state));
+}
 
 function addPage() {
   let step = parseInt(document.getElementById("step").value);
   read += step;
   update();
+  saveState();
 }
 
 function update() {
@@ -136,21 +147,23 @@ function update() {
 
   let remaining = total - read;
   let days = Math.ceil(remaining / daily);
-
   let d = new Date();
   d.setDate(d.getDate() + days);
 
   document.getElementById("estimate").innerText =
-    "📅 Finish: " + d.toDateString();
+    remaining > 0 ? "📅 Finish: " + d.toDateString() : "🎉 Completed!";
 }
 
-function toggle() {
-  let s = document.getElementById("settings");
-  s.classList.toggle("hidden");
+function toggleSettings() {
+  document.getElementById("settings").classList.toggle("hidden");
 }
+
+// Update whenever inputs change
+document.querySelectorAll("#total, #daily, #step, #color").forEach(input => {
+  input.addEventListener("input", () => { update(); saveState(); });
+});
 
 update();
-
 </script>
 
 </body>
