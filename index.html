@@ -1,36 +1,81 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cloud Book Tracker</title>
 <style>
-body { font-family: -apple-system,BlinkMacSystemFont,sans-serif; background:#f6f6f6; display:flex; justify-content:center; padding:20px; transition:0.3s; }
-body.dark { background:#1e1e1e; color:#f1f1f1; }
-.card { background:white; padding:20px; border-radius:16px; width:360px; text-align:center; box-shadow:0 8px 20px rgba(0,0,0,0.06); transition:0.3s; }
-body.dark .card { background:#2b2b2b; color:#f1f1f1; }
-h2 { margin-bottom:10px; }
-.progress-container { background:#eee; border-radius:12px; height:20px; overflow:hidden; margin:15px 0; position:relative; }
-body.dark .progress-container { background:#444; }
-.progress-bar { height:100%; width:0%; border-radius:12px; transition:0.4s ease; }
-.emoji { position:absolute; top:-2px; transform:translateX(-50%); font-size:20px; transition:0.4s ease; }
-.big-button { font-size:26px; width:70px; height:70px; border-radius:50%; border:none; cursor:pointer; color:white; transition:0.2s; margin:5px; }
-.big-button:active { transform:scale(0.9); }
-.small { font-size:13px; opacity:0.7; }
-input, select { width:80px; text-align:center; border-radius:6px; border:1px solid #ddd; margin:4px; }
-.toggle { margin-top:10px; cursor:pointer; font-size:13px; opacity:0.7; }
-.hidden { display:none; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f6f6f6;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  transition: background 0.3s, color 0.3s;
+}
+body.dark {
+  background: #1e1e1e;
+  color: #f1f1f1;
+}
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  width: 360px;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  transition: background 0.3s, color 0.3s;
+}
+body.dark .card {
+  background: #2b2b2b;
+  color: #f1f1f1;
+}
+h2 {
+  margin-bottom: 10px;
+}
+.progress-container {
+  background: #eee;
+  border-radius: 12px;
+  height: 20px;
+  overflow: hidden;
+  margin: 15px 0;
+  position: relative;
+}
+body.dark .progress-container {
+  background: #444;
+}
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 12px;
+  transition: width 0.4s ease;
+}
+.emoji {
+  position: absolute;
+  top: -2px;
+  transform: translateX(-50%);
+  font-size: 20px;
+  transition: left 0.4s ease;
+}
+.big-button {
+  font-size: 26px;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  color: white;
+  transition: 0.2s;
+  margin: 5px;
+}
+.big-button:active { transform: scale(0.9); }
+.small { font-size: 13px; opacity: 0.7; }
+input, select { width: 80px; text-align: center; border-radius: 6px; border: 1px solid #ddd; margin: 4px; }
+.toggle { margin-top: 10px; cursor: pointer; font-size: 13px; opacity: 0.7; }
+.hidden { display: none; }
 </style>
 </head>
 <body>
 
-<div class="card" id="authCard">
-  <h2>Sign In</h2>
-  <input type="text" id="userIdInput" placeholder="Enter your ID"><br><br>
-  <button onclick="signIn()">Sign In</button>
-</div>
-
-<div class="card hidden" id="mainUI">
+<div class="card">
   <h2 id="bookTitleDisplay">📖 Book Tracker</h2>
   
   <select id="bookSelect"></select>
@@ -58,145 +103,200 @@ input, select { width:80px; text-align:center; border-radius:6px; border:1px sol
     Daily Pages: <input type="number" id="daily"><br>
     Step Size: <input type="number" id="step"><br>
     Primary Color: <input type="color" id="color"><br>
-    Remaining/Text Color: <input type="color" id="secondaryColor"><br>
+    Settings / Remaining Color: <input type="color" id="secondaryColor"><br>
     Emoji: <input type="text" id="emojiInput" maxlength="2"><br>
     <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button><br>
-    <button onclick="exportToSheets()">📤 Save to Google Sheets</button>
+    <button onclick="exportToSheets()">📤 Export to Google Sheets</button>
   </div>
 </div>
 
 <script>
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbyrYz-OwfmuH2-aDc9DYque0A1Bhq7-QodkA9rHZPFw29fkjqXibYiHr5CUam7N6F6p/exec"; // <-- paste your URL here
-let userId = "";
-let books = [];
+// --- Load or initialize ---
+let books = JSON.parse(localStorage.getItem("books")) || [];
 let currentBookIndex = 0;
 
-// Auto-load last used ID
-if(localStorage.getItem("userId")) {
-  userId = localStorage.getItem("userId");
-  document.getElementById("userIdInput").value = userId;
-  signIn();
+// Initialize first book if none exist
+if(books.length === 0) {
+  books.push({
+    title: "Book 1",
+    read: 0,
+    total: 300,
+    daily: 10,
+    step: 1,
+    color: "#4CAF50",
+    secondaryColor: "#cccccc",
+    emoji: "📚"
+  });
 }
+populateBookSelect();
+loadBook(currentBookIndex);
 
-function signIn() {
-  const input = document.getElementById("userIdInput");
-  if(!input.value) { alert("Enter an ID"); return; }
-  userId = input.value;
-  localStorage.setItem("userId", userId); // Save for next visit
-  document.getElementById("authCard").classList.add("hidden");
-  document.getElementById("mainUI").classList.remove("hidden");
-  loadFromCloud();
-}
-
-// --- Cloud functions ---
-function saveToCloud() {
-  if(!userId) return;
-  fetch(SHEETS_URL, {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({userId, books})
-  }).catch(err=>console.error(err));
-}
-
-function loadFromCloud() {
-  fetch(`${SHEETS_URL}?userId=${encodeURIComponent(userId)}`)
-  .then(r=>r.json())
-  .then(data=>{
-    if(data && data.length>0) books = data;
-    else {
-      books = [{
-        title:"Book 1",
-        read:0,total:300,daily:10,step:1,color:"#4CAF50",secondaryColor:"#cccccc",emoji:"📚"
-      }];
-    }
-    populateBookSelect();
-    loadBook(currentBookIndex);
-  })
-  .catch(err=>console.error(err));
-}
-
-// --- Book functions ---
-function populateBookSelect(){
+// --- UI Functions ---
+function populateBookSelect() {
   const sel = document.getElementById("bookSelect");
-  sel.innerHTML="";
-  books.forEach((b,i)=>{
-    const opt=document.createElement("option");
-    opt.value=i; opt.innerText=b.title;
+  sel.innerHTML = "";
+  books.forEach((b, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.innerText = b.title;
     sel.appendChild(opt);
   });
   sel.value = currentBookIndex;
 }
-document.getElementById("bookSelect").addEventListener("change",(e)=>{
-  currentBookIndex=parseInt(e.target.value);
+
+document.getElementById("bookSelect").addEventListener("change", (e) => {
+  currentBookIndex = parseInt(e.target.value);
   loadBook(currentBookIndex);
 });
-function addBook(){
-  const newBook={title:`Book ${books.length+1}`,read:0,total:300,daily:10,step:1,color:"#4CAF50",secondaryColor:"#cccccc",emoji:"📚"};
-  books.push(newBook); currentBookIndex=books.length-1;
-  populateBookSelect(); loadBook(currentBookIndex); saveToCloud();
+
+function addBook() {
+  let newBook = {
+    title: `Book ${books.length+1}`,
+    read: 0,
+    total: 300,
+    daily: 10,
+    step: 1,
+    color: "#4CAF50",
+    secondaryColor: "#cccccc",
+    emoji: "📚"
+  };
+  books.push(newBook);
+  currentBookIndex = books.length-1;
+  saveBooks();
+  populateBookSelect();
+  loadBook(currentBookIndex);
 }
-function loadBook(index){
-  const b=books[index];
-  document.getElementById("bookTitle").value=b.title;
-  document.getElementById("total").value=b.total;
-  document.getElementById("daily").value=b.daily;
-  document.getElementById("step").value=b.step;
-  document.getElementById("color").value=b.color;
-  document.getElementById("secondaryColor").value=b.secondaryColor;
-  document.getElementById("emojiInput").value=b.emoji;
+
+function loadBook(index) {
+  let book = books[index];
+  document.getElementById("bookTitle").value = book.title;
+  document.getElementById("total").value = book.total;
+  document.getElementById("daily").value = book.daily;
+  document.getElementById("step").value = book.step;
+  document.getElementById("color").value = book.color;
+  document.getElementById("secondaryColor").value = book.secondaryColor;
+  document.getElementById("emojiInput").value = book.emoji;
   update();
 }
-function saveBookInputs(){
-  const b=books[currentBookIndex];
-  b.title=document.getElementById("bookTitle").value;
-  b.total=parseInt(document.getElementById("total").value);
-  b.daily=parseInt(document.getElementById("daily").value);
-  b.step=parseInt(document.getElementById("step").value);
-  b.color=document.getElementById("color").value;
-  b.secondaryColor=document.getElementById("secondaryColor").value;
-  b.emoji=document.getElementById("emojiInput").value||"📚";
-  populateBookSelect(); saveToCloud();
-}
-function addPage(){books[currentBookIndex].read+=parseInt(document.getElementById("step").value); if(books[currentBookIndex].read>books[currentBookIndex].total) books[currentBookIndex].read=books[currentBookIndex].total; saveBookInputs(); update();}
-function removePage(){books[currentBookIndex].read-=parseInt(document.getElementById("step").value); if(books[currentBookIndex].read<0) books[currentBookIndex].read=0; saveBookInputs(); update();}
-function resetProgress(){books[currentBookIndex].read=0; saveBookInputs(); update();}
 
-// --- Update display ---
-function update(){
-  const b=books[currentBookIndex];
-  const percent=Math.min((b.read/b.total)*100,100);
-  document.getElementById("bar").style.width=percent+"%";
-  document.getElementById("bar").style.background=b.color;
-  document.getElementById("progressContainer").style.background=b.secondaryColor;
-  document.querySelectorAll(".big-button").forEach(btn=>btn.style.background=b.color);
-  document.getElementById("percent").style.color=b.secondaryColor;
-  document.getElementById("pageCount").style.color=b.secondaryColor;
-  document.getElementById("estimate").style.color=b.secondaryColor;
-  document.getElementById("bookTitleDisplay").style.color=b.secondaryColor;
-  document.getElementById("percent").innerText=percent.toFixed(1)+"%";
-  document.getElementById("pageCount").innerText=`${b.read} / ${b.total} pages`;
-  document.getElementById("bookTitleDisplay").innerText=b.title?"📖 "+b.title:"📖 Book Tracker";
-  const remaining=b.total-b.read;
-  const days=Math.ceil(remaining/b.daily);
-  const d=new Date(); d.setDate(d.getDate()+days);
-  document.getElementById("estimate").innerText=remaining>0?"📅 Finish: "+d.toDateString():"🎉 Completed!";
-  const containerWidth=document.getElementById("progressContainer").offsetWidth;
-  document.getElementById("emoji").style.left=(percent/100*containerWidth)+"px";
-  document.getElementById("emoji").innerText=b.emoji;
+function saveBooks() {
+  localStorage.setItem("books", JSON.stringify(books));
 }
 
-// --- Toggles ---
-function toggleSettings(){document.getElementById("settings").classList.toggle("hidden");}
-function toggleDarkMode(){document.body.classList.toggle("dark"); saveBookInputs();}
+// --- Book Actions ---
+function addPage() {
+  let book = books[currentBookIndex];
+  book.read += parseInt(document.getElementById("step").value);
+  if(book.read > book.total) book.read = book.total;
+  saveBookInputs();
+  update();
+  saveBooks();
+}
 
-// --- Auto-save settings ---
-document.querySelectorAll("#bookTitle,#total,#daily,#step,#color,#secondaryColor,#emojiInput").forEach(input=>{
-  input.addEventListener("input",()=>{saveBookInputs(); update();});
+function removePage() {
+  let book = books[currentBookIndex];
+  book.read -= parseInt(document.getElementById("step").value);
+  if(book.read < 0) book.read = 0;
+  saveBookInputs();
+  update();
+  saveBooks();
+}
+
+function resetProgress() {
+  let book = books[currentBookIndex];
+  book.read = 0;
+  saveBookInputs();
+  update();
+  saveBooks();
+}
+
+// --- Update Display ---
+function saveBookInputs() {
+  let book = books[currentBookIndex];
+  book.title = document.getElementById("bookTitle").value;
+  book.total = parseInt(document.getElementById("total").value);
+  book.daily = parseInt(document.getElementById("daily").value);
+  book.step = parseInt(document.getElementById("step").value);
+  book.color = document.getElementById("color").value;
+  book.secondaryColor = document.getElementById("secondaryColor").value;
+  book.emoji = document.getElementById("emojiInput").value || "📚";
+  populateBookSelect();
+}
+
+function update() {
+  let book = books[currentBookIndex];
+  let percent = Math.min((book.read / book.total) * 100, 100);
+
+  // Progress bar
+  document.getElementById("bar").style.width = percent + "%";
+  document.getElementById("bar").style.background = book.color;
+  document.getElementById("progressContainer").style.background = book.secondaryColor;
+
+  // Buttons color
+  document.querySelectorAll(".big-button").forEach(btn => btn.style.background = book.color);
+
+  // Text color
+  document.getElementById("percent").style.color = book.secondaryColor;
+  document.getElementById("pageCount").style.color = book.secondaryColor;
+  document.getElementById("estimate").style.color = book.secondaryColor;
+  document.getElementById("bookTitleDisplay").style.color = book.secondaryColor;
+
+  // Text updates
+  document.getElementById("percent").innerText = percent.toFixed(1) + "%";
+  document.getElementById("pageCount").innerText = `${book.read} / ${book.total} pages`;
+  document.getElementById("bookTitleDisplay").innerText = book.title ? "📖 " + book.title : "📖 Book Tracker";
+
+  let remaining = book.total - book.read;
+  let days = Math.ceil(remaining / book.daily);
+  let d = new Date();
+  d.setDate(d.getDate() + days);
+  document.getElementById("estimate").innerText =
+    remaining > 0 ? "📅 Finish: " + d.toDateString() : "🎉 Completed!";
+
+  // Emoji
+  let containerWidth = document.getElementById("progressContainer").offsetWidth;
+  let emojiPos = (percent / 100) * containerWidth;
+  document.getElementById("emoji").style.left = `${emojiPos}px`;
+  document.getElementById("emoji").innerText = book.emoji;
+}
+
+// --- Toggle settings & dark mode ---
+function toggleSettings() { document.getElementById("settings").classList.toggle("hidden"); }
+function toggleDarkMode() { document.body.classList.toggle("dark"); saveBooks(); }
+
+// --- Export to Google Sheets ---
+// Set up your Google Apps Script endpoint URL
+const SHEETS_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL";
+
+function exportToSheets() {
+  let data = books.map(b => ({
+    title: b.title,
+    read: b.read,
+    total: b.total,
+    daily: b.daily,
+    step: b.step,
+    color: b.color,
+    secondaryColor: b.secondaryColor,
+    emoji: b.emoji
+  }));
+  
+  fetch(SHEETS_URL, {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: { "Content-Type": "application/json" }
+  }).then(res => {
+    if(res.ok) alert("Exported to Google Sheets!");
+    else alert("Failed to export.");
+  }).catch(err => alert("Error exporting: "+err));
+}
+
+// --- Save inputs whenever changed ---
+document.querySelectorAll("#bookTitle, #total, #daily, #step, #color, #secondaryColor, #emojiInput").forEach(input => {
+  input.addEventListener("input", () => { saveBookInputs(); update(); saveBooks(); });
 });
 
-// --- Google Sheets Export ---
-function exportToSheets(){saveToCloud(); alert("Saved to Google Sheets!");}
-
+update();
 </script>
+
 </body>
 </html>
