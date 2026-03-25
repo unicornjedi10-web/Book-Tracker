@@ -4,54 +4,35 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cloud Book Tracker</title>
-
 <style>
-/* Your existing styles (same as before) */
-body {
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #f6f6f6;
-  display: flex;
-  justify-content: center;
-  padding: 20px;
-  transition: background 0.3s, color 0.3s;
-}
-body.dark { background: #1e1e1e; color: #f1f1f1; }
-
-/* ... rest of your styles (progress bar, buttons, etc.) ... */
-
-.modal {
-  position: fixed; top:0; left:0; right:0; bottom:0;
-  background: rgba(0,0,0,0.6);
-  display: flex; align-items: center; justify-content: center;
-}
-.modal-content {
-  background: white; padding: 20px; border-radius:12px;
-}
+body { font-family: -apple-system,BlinkMacSystemFont,sans-serif; background:#f6f6f6; display:flex; justify-content:center; padding:20px; transition:0.3s; }
+body.dark { background:#1e1e1e; color:#f1f1f1; }
+.card { background:white; padding:20px; border-radius:16px; width:360px; text-align:center; box-shadow:0 8px 20px rgba(0,0,0,0.06); transition:0.3s; }
+body.dark .card { background:#2b2b2b; color:#f1f1f1; }
+h2 { margin-bottom:10px; }
+.progress-container { background:#eee; border-radius:12px; height:20px; overflow:hidden; margin:15px 0; position:relative; }
+body.dark .progress-container { background:#444; }
+.progress-bar { height:100%; width:0%; border-radius:12px; transition:0.4s ease; }
+.emoji { position:absolute; top:-2px; transform:translateX(-50%); font-size:20px; transition:0.4s ease; }
+.big-button { font-size:26px; width:70px; height:70px; border-radius:50%; border:none; cursor:pointer; color:white; transition:0.2s; margin:5px; }
+.big-button:active { transform:scale(0.9); }
+.small { font-size:13px; opacity:0.7; }
+input, select { width:80px; text-align:center; border-radius:6px; border:1px solid #ddd; margin:4px; }
+.toggle { margin-top:10px; cursor:pointer; font-size:13px; opacity:0.7; }
+.hidden { display:none; }
 </style>
-
-<!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
 </head>
 <body>
 
-<!-- LOGIN MODAL -->
-<div id="authModal" class="modal">
-  <div class="modal-content">
-    <h3>Sign In / Register</h3>
-    <input type="email" id="authEmail" placeholder="Email"><br><br>
-    <input type="password" id="authPassword" placeholder="Password"><br><br>
-    <button onclick="signUp()">Register</button>
-    <button onclick="signIn()">Sign In</button>
-  </div>
+<div class="card" id="authCard">
+  <h2>Sign In</h2>
+  <input type="text" id="userIdInput" placeholder="Enter your ID"><br><br>
+  <button onclick="signIn()">Sign In</button>
 </div>
 
-<!-- MAIN CARD (your existing UI) -->
-<div class="card" id="mainUI" style="display:none;">
-  <!-- Your existing tracker UI here, exactly as before -->
+<div class="card hidden" id="mainUI">
   <h2 id="bookTitleDisplay">📖 Book Tracker</h2>
+  
   <select id="bookSelect"></select>
   <button onclick="addBook()" class="small">➕ New Book</button>
   
@@ -59,109 +40,163 @@ body.dark { background: #1e1e1e; color: #f1f1f1; }
     <div class="progress-bar" id="bar"></div>
     <div class="emoji" id="emoji">📚</div>
   </div>
-
+  
   <div id="percent">0%</div>
   <div id="pageCount" class="small">0 / 0 pages</div>
-
+  
   <button class="big-button" onclick="addPage()">+</button>
   <button class="big-button" onclick="removePage()">-</button>
   <button class="big-button" onclick="resetProgress()">⟳</button>
-
+  
   <div class="small" id="estimate"></div>
-
+  
   <div class="toggle" onclick="toggleSettings()">⚙️ Settings</div>
-
+  
   <div id="settings" class="hidden small">
-    <!-- Same settings fields as before -->
+    Title: <input type="text" id="bookTitle"><br>
+    Total Pages: <input type="number" id="total"><br>
+    Daily Pages: <input type="number" id="daily"><br>
+    Step Size: <input type="number" id="step"><br>
+    Primary Color: <input type="color" id="color"><br>
+    Remaining/Text Color: <input type="color" id="secondaryColor"><br>
+    Emoji: <input type="text" id="emojiInput" maxlength="2"><br>
+    <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button><br>
+    <button onclick="exportToSheets()">📤 Save to Google Sheets</button>
   </div>
-
-  <button onclick="signOut()">Sign Out</button>
 </div>
 
 <script>
-// === FIREBASE CONFIG (paste your config here) ===
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTHDOMAIN",
-  projectId: "YOUR_PROJECTID",
-  storageBucket: "YOUR_BUCKET",
-  messagingSenderId: "YOUR_SENDER",
-  appId: "YOUR_APPID"
-};
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbyrYz-OwfmuH2-aDc9DYque0A1Bhq7-QodkA9rHZPFw29fkjqXibYiHr5CUam7N6F6p/exec"; // <-- paste your URL here
+let userId = "";
+let books = [];
+let currentBookIndex = 0;
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-// === AUTH HANDLERS ===
-auth.onAuthStateChanged(user => {
-  if (user) {
-    document.getElementById("authModal").style.display = "none";
-    document.getElementById("mainUI").style.display = "block";
-    loadFromCloud();
-  } else {
-    document.getElementById("authModal").style.display = "flex";
-    document.getElementById("mainUI").style.display = "none";
-  }
-});
-
-function signUp() {
-  const email = document.getElementById("authEmail").value;
-  const pass = document.getElementById("authPassword").value;
-  auth.createUserWithEmailAndPassword(email, pass).catch(alert);
+// Auto-load last used ID
+if(localStorage.getItem("userId")) {
+  userId = localStorage.getItem("userId");
+  document.getElementById("userIdInput").value = userId;
+  signIn();
 }
 
 function signIn() {
-  const email = document.getElementById("authEmail").value;
-  const pass = document.getElementById("authPassword").value;
-  auth.signInWithEmailAndPassword(email, pass).catch(alert);
+  const input = document.getElementById("userIdInput");
+  if(!input.value) { alert("Enter an ID"); return; }
+  userId = input.value;
+  localStorage.setItem("userId", userId); // Save for next visit
+  document.getElementById("authCard").classList.add("hidden");
+  document.getElementById("mainUI").classList.remove("hidden");
+  loadFromCloud();
 }
 
-function signOut() {
-  auth.signOut();
-}
-
-// === CLOUD FUNCTIONS ===
-
+// --- Cloud functions ---
 function saveToCloud() {
-  const user = auth.currentUser;
-  if (!user) return;
-
-  db.collection("bookData").doc(user.uid).set({ books })
-    .catch(err => console.error("Cloud save failed:", err));
+  if(!userId) return;
+  fetch(SHEETS_URL, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({userId, books})
+  }).catch(err=>console.error(err));
 }
 
 function loadFromCloud() {
-  const user = auth.currentUser;
-  if (!user) return;
-
-  db.collection("bookData").doc(user.uid).get()
-    .then(doc => {
-      if (doc.exists) {
-        books = doc.data().books || books;
-        populateBookSelect();
-        loadBook(currentBookIndex);
-      }
-    })
-    .catch(err => console.error("Cloud load failed:", err));
+  fetch(`${SHEETS_URL}?userId=${encodeURIComponent(userId)}`)
+  .then(r=>r.json())
+  .then(data=>{
+    if(data && data.length>0) books = data;
+    else {
+      books = [{
+        title:"Book 1",
+        read:0,total:300,daily:10,step:1,color:"#4CAF50",secondaryColor:"#cccccc",emoji:"📚"
+      }];
+    }
+    populateBookSelect();
+    loadBook(currentBookIndex);
+  })
+  .catch(err=>console.error(err));
 }
 
-// === YOUR EXISTING TRACKER CODE BELOW ===
-// (Everything you already had for books, UI, update(), 
-// addBook(), removePage(), resetProgress(), toggleSettings(), etc.)
+// --- Book functions ---
+function populateBookSelect(){
+  const sel = document.getElementById("bookSelect");
+  sel.innerHTML="";
+  books.forEach((b,i)=>{
+    const opt=document.createElement("option");
+    opt.value=i; opt.innerText=b.title;
+    sel.appendChild(opt);
+  });
+  sel.value = currentBookIndex;
+}
+document.getElementById("bookSelect").addEventListener("change",(e)=>{
+  currentBookIndex=parseInt(e.target.value);
+  loadBook(currentBookIndex);
+});
+function addBook(){
+  const newBook={title:`Book ${books.length+1}`,read:0,total:300,daily:10,step:1,color:"#4CAF50",secondaryColor:"#cccccc",emoji:"📚"};
+  books.push(newBook); currentBookIndex=books.length-1;
+  populateBookSelect(); loadBook(currentBookIndex); saveToCloud();
+}
+function loadBook(index){
+  const b=books[index];
+  document.getElementById("bookTitle").value=b.title;
+  document.getElementById("total").value=b.total;
+  document.getElementById("daily").value=b.daily;
+  document.getElementById("step").value=b.step;
+  document.getElementById("color").value=b.color;
+  document.getElementById("secondaryColor").value=b.secondaryColor;
+  document.getElementById("emojiInput").value=b.emoji;
+  update();
+}
+function saveBookInputs(){
+  const b=books[currentBookIndex];
+  b.title=document.getElementById("bookTitle").value;
+  b.total=parseInt(document.getElementById("total").value);
+  b.daily=parseInt(document.getElementById("daily").value);
+  b.step=parseInt(document.getElementById("step").value);
+  b.color=document.getElementById("color").value;
+  b.secondaryColor=document.getElementById("secondaryColor").value;
+  b.emoji=document.getElementById("emojiInput").value||"📚";
+  populateBookSelect(); saveToCloud();
+}
+function addPage(){books[currentBookIndex].read+=parseInt(document.getElementById("step").value); if(books[currentBookIndex].read>books[currentBookIndex].total) books[currentBookIndex].read=books[currentBookIndex].total; saveBookInputs(); update();}
+function removePage(){books[currentBookIndex].read-=parseInt(document.getElementById("step").value); if(books[currentBookIndex].read<0) books[currentBookIndex].read=0; saveBookInputs(); update();}
+function resetProgress(){books[currentBookIndex].read=0; saveBookInputs(); update();}
 
-// But everywhere you previously did saveBooks/localStorage:
-function saveBooks() {
-  localStorage.setItem("books", JSON.stringify(books));
-  saveToCloud();  // ALSO save to cloud
+// --- Update display ---
+function update(){
+  const b=books[currentBookIndex];
+  const percent=Math.min((b.read/b.total)*100,100);
+  document.getElementById("bar").style.width=percent+"%";
+  document.getElementById("bar").style.background=b.color;
+  document.getElementById("progressContainer").style.background=b.secondaryColor;
+  document.querySelectorAll(".big-button").forEach(btn=>btn.style.background=b.color);
+  document.getElementById("percent").style.color=b.secondaryColor;
+  document.getElementById("pageCount").style.color=b.secondaryColor;
+  document.getElementById("estimate").style.color=b.secondaryColor;
+  document.getElementById("bookTitleDisplay").style.color=b.secondaryColor;
+  document.getElementById("percent").innerText=percent.toFixed(1)+"%";
+  document.getElementById("pageCount").innerText=`${b.read} / ${b.total} pages`;
+  document.getElementById("bookTitleDisplay").innerText=b.title?"📖 "+b.title:"📖 Book Tracker";
+  const remaining=b.total-b.read;
+  const days=Math.ceil(remaining/b.daily);
+  const d=new Date(); d.setDate(d.getDate()+days);
+  document.getElementById("estimate").innerText=remaining>0?"📅 Finish: "+d.toDateString():"🎉 Completed!";
+  const containerWidth=document.getElementById("progressContainer").offsetWidth;
+  document.getElementById("emoji").style.left=(percent/100*containerWidth)+"px";
+  document.getElementById("emoji").innerText=b.emoji;
 }
 
-// Everywhere you called localStorage stuff, just keep it
-// and now we also sync to Firebase automatically
+// --- Toggles ---
+function toggleSettings(){document.getElementById("settings").classList.toggle("hidden");}
+function toggleDarkMode(){document.body.classList.toggle("dark"); saveBookInputs();}
 
-// Ensure update() calls saveBooks() after changes too
+// --- Auto-save settings ---
+document.querySelectorAll("#bookTitle,#total,#daily,#step,#color,#secondaryColor,#emojiInput").forEach(input=>{
+  input.addEventListener("input",()=>{saveBookInputs(); update();});
+});
+
+// --- Google Sheets Export ---
+function exportToSheets(){saveToCloud(); alert("Saved to Google Sheets!");}
 
 </script>
-
 </body>
 </html>
